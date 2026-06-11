@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agience-prism"
+version = "0.1.0"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+description = "Agience Prism — the embeddings capability host (bge-m3), built on agience-kernel."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "agience-kernel>=0.1",
+    "sentence-transformers>=3.0,<4.0",
+    # transformers >=4.50 refuses torch.load of a .bin checkpoint unless torch>=2.6;
+    # bge-m3 ships pytorch_model.bin, so pin below it for the torch 2.4 base.
+    "transformers>=4.41,<4.50",
+    "numpy<2.1",
+    "sentencepiece>=0.2.0",
+    "protobuf>=4.25",
+    # NOTE: torch is intentionally NOT pinned here — it comes from the deployment
+    # base image (CUDA torch on GPU, or the CPU wheel installed in the Dockerfile).
+]
+classifiers = [
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Programming Language :: Python :: 3",
+]
+
+[project.scripts]
+agience-prism = "agience_prism.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
