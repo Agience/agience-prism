@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 # Agience Prism — embeddings host (bge-m3), CPU image. NO model baked.
 #
-# Build from the repo root (kernel SDK comes from a named build context — no PyPI):
-#   docker build --build-context kernel=../agience-kernel -f Dockerfile -t <ns>/agience-prism .
-# Once agience-kernel is on PyPI: drop --build-context and the two "kernel" lines below.
+# Build from the repo root (host SDK comes from a named build context — no PyPI):
+#   docker build --build-context host=../agience-host -f Dockerfile -t <ns>/agience-prism .
+# Once agience-host is on PyPI: drop --build-context and the two "host" lines below.
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -19,11 +19,11 @@ RUN apt-get update \
 # CPU-only torch wheel (smaller than CUDA torch).
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 
-# Kernel SDK (Apache-2.0) from the named build context.
-COPY --from=kernel . /tmp/agience-kernel
-RUN pip install --no-cache-dir /tmp/agience-kernel
+# Host SDK (Apache-2.0) from the named build context.
+COPY --from=host . /tmp/agience-host
+RUN pip install --no-cache-dir /tmp/agience-host
 
-# Prism (this repo) + model deps. agience-kernel is already satisfied above.
+# Prism (this repo) + model deps. agience-host is already satisfied above.
 COPY pyproject.toml README.md LICENSE ./
 COPY src/ ./src/
 RUN pip install --no-cache-dir .

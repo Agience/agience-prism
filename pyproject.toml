@@ -7,11 +7,11 @@ name = "agience-prism"
 version = "0.1.0"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
-description = "Agience Prism — the embeddings capability host (bge-m3), built on agience-kernel."
+description = "Agience Prism — the embeddings capability host (bge-m3), built on agience-host."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "agience-kernel>=0.1",
+    "agience-host>=0.1",
     "sentence-transformers>=3.0,<4.0",
     # transformers >=4.50 refuses torch.load of a .bin checkpoint unless torch>=2.6;
     # bge-m3 ships pytorch_model.bin, so pin below it for the torch 2.4 base.
@@ -23,7 +23,6 @@ dependencies = [
     # base image (CUDA torch on GPU, or the CPU wheel installed in the Dockerfile).
 ]
 classifiers = [
-    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
     "Programming Language :: Python :: 3",
 ]
 

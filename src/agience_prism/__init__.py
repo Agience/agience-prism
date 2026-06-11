@@ -1,6 +1,6 @@
-"""Agience Prism — the embeddings capability host (bge-m3), built on agience-kernel.
+"""Agience Prism — the embeddings capability host (bge-m3), built on agience-host.
 
-AGPL-3.0-or-later. Prism is a *host*: it depends on the permissive `agience-kernel`
+AGPL-3.0-or-later. Prism is a *host*: it depends on the permissive `agience-host`
 SDK and exposes the `embeddings.embed` capability over `POST /embed`. It talks to the
 platform only over the wire — it never imports core.
 """

@@ -1,0 +1,20 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Prism: Build & push image",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .scripts\\build.ps1 -Tag '${input:tag}'",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "tag",
+      "type": "promptString",
+      "description": "Image tag to build/push (default: gpu)",
+      "default": "gpu"
+    }
+  ]
+}

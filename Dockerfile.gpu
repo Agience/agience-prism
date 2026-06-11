@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 # Agience Prism — embeddings host (bge-m3), GPU image for RunPod. NO model baked.
 #
-# Build from the repo root (kernel SDK comes from a named build context — no PyPI):
-#   docker build --build-context kernel=../agience-kernel -f Dockerfile.gpu -t <ns>/agience-prism:gpu .
-# Once agience-kernel is on PyPI: drop --build-context and the two "kernel" lines below.
+# Build from the repo root (host SDK comes from a named build context — no PyPI):
+#   docker build --build-context host=../agience-host -f Dockerfile.gpu -t <ns>/agience-prism:gpu .
+# Once agience-host is on PyPI: drop --build-context and the two "host" lines below.
 FROM pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -13,9 +13,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Kernel SDK (Apache-2.0) from the named build context. torch is already in the base.
-COPY --from=kernel . /tmp/agience-kernel
-RUN pip install --no-cache-dir /tmp/agience-kernel
+# Host SDK (Apache-2.0) from the named build context. torch is already in the base.
+COPY --from=host . /tmp/agience-host
+RUN pip install --no-cache-dir /tmp/agience-host
 
 # Prism (this repo) + model deps.
 COPY pyproject.toml README.md LICENSE ./

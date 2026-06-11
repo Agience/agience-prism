@@ -1,6 +1,6 @@
 """Agience Prism — bge-m3 served as the ``embeddings.embed`` capability.
 
-Built on agience-kernel. Speaks the contract the platform's ``kernel/embeddings.py``
+Built on agience-host. Speaks the contract the platform's ``kernel/embeddings.py``
 (AgienceHTTPEmbeddings) expects::
 
     POST /embed  {"input": ["text", ...]}  ->  {"vectors": [[float, ...]], "model_id": "..."}
@@ -15,7 +15,7 @@ import os
 
 from pydantic import BaseModel, Field
 
-from agience_kernel import Host
+from agience_host import Host
 
 MODEL_ID = os.getenv("EMBEDDINGS_MODEL", "BAAI/bge-m3")
 DEVICE = os.getenv("EMBEDDINGS_DEVICE", "cpu")
