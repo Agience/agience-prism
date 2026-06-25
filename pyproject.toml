@@ -11,7 +11,7 @@ description = "Agience Prism — the embeddings capability host (bge-m3), built 
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "agience-host>=0.1",
+    "agience-kit>=0.1",
     "sentence-transformers>=3.0,<4.0",
     # transformers >=4.50 refuses torch.load of a .bin checkpoint unless torch>=2.6;
     # bge-m3 ships pytorch_model.bin, so pin below it for the torch 2.4 base.

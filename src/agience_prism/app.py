@@ -15,12 +15,16 @@ import os
 
 from pydantic import BaseModel, Field
 
-from agience_host import Host
+from agience_kit import Host
 
 MODEL_ID = os.getenv("EMBEDDINGS_MODEL", "BAAI/bge-m3")
 DEVICE = os.getenv("EMBEDDINGS_DEVICE", "cpu")
 EXPECTED_DIM = int(os.getenv("EMBEDDINGS_DIM", "1024"))
 BATCH_SIZE = int(os.getenv("EMBEDDINGS_BATCH_SIZE", "32"))
+
+
+def _csv(value: str) -> tuple[str, ...]:
+    return tuple(p.strip() for p in (value or "").split(",") if p.strip())
 
 _model = None
 
@@ -50,10 +54,38 @@ def _model_id() -> str:
     return f"hf:{MODEL_ID}@{ver}"
 
 
-# Shared bearer is optional but recommended — a RunPod proxy URL is public.
+# Inbound auth — three modes, tried in order (see agience_kit.host.TokenVerifier):
+#
+#   1. Authority JWT (RS256, PRIMARY). A JWT signed by a member of the install's
+#      Origin authority (e.g. Mantle self-signs iss=mantle, aud=prism; or an
+#      Origin OAuth2 token, kid=origin-1, aud=agience). Prism verifies against
+#      the authority's keys, from either:
+#        AUTHORITY_MANIFEST   — path to the install's authority.manifest.json
+#                               (mount it when Prism is co-located with a core
+#                               install; carries every anchor's public JWKS)
+#        AUTHORITY_JWKS_URL   — e.g. https://origin.<install>/.well-known/jwks.json
+#                               (for a remote Prism; gives Origin's key)
+#      EMBEDDINGS_AUDIENCES gates the accepted `aud` (default "prism,agience").
+#
+#   2. Local HS256 JWT (FALLBACK). Verified against PRISM_LOCAL_JWT_SECRET — the
+#      standalone/dev path when no authority is reachable.
+#
+#   3. Static API key(s) (FALLBACK). A hot-reloaded directory of key files on the
+#      persistent volume — EMBEDDINGS_KEYS_DIR (default /data/keys.d), one file
+#      per consumer (e.g. prod.key, dev.key). Drop or remove a file to grant or
+#      revoke a caller live, no redeploy — this is the managed allowlist. Inline
+#      EMBEDDINGS_SERVER_API_KEY (comma-separated) is also accepted for bootstrap.
+#
+# Nothing configured = open (a public proxy URL — set at least one).
 host = Host(
     "agience-prism",
     api_key=os.getenv("EMBEDDINGS_SERVER_API_KEY", ""),
+    api_keys_dir=os.getenv("EMBEDDINGS_KEYS_DIR", "/data/keys.d"),
+    authority_manifest_path=os.getenv("AUTHORITY_MANIFEST"),
+    authority_jwks_url=os.getenv("AUTHORITY_JWKS_URL"),
+    hs256_secret=os.getenv("PRISM_LOCAL_JWT_SECRET"),
+    expected_audiences=_csv(os.getenv("EMBEDDINGS_AUDIENCES", "prism,agience")),
+    allowed_issuers=_csv(os.getenv("EMBEDDINGS_ALLOWED_ISSUERS", "")),
     warmup=_load_model,
 )
 

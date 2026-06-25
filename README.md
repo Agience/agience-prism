@@ -57,6 +57,56 @@ raw pod URL instead:
 
 (`EMBEDDINGS_PROVIDER=agience` is the default.) Unset `EMBEDDINGS_URI` → BM25 fallback.
 
+## Authentication
+
+Prism authorizes inbound `/embed` calls with three modes, tried in order
+(`/health` stays open). Configure any combination; **nothing set = open**.
+
+**1. Authority JWT — RS256 (primary).** A JWT signed by a member of the install's
+Origin *authority*. The platform's first-party services self-sign (Mantle:
+`iss=mantle, aud=prism`); an Origin-issued OAuth2 token (`kid=origin-1,
+aud=agience`) verifies the same way. Trust = the signing key (by `kid`) is in the
+authority's published JWKS, which Prism reads from one of:
+
+- `AUTHORITY_MANIFEST` — path to the install's `authority.manifest.json` (mount
+  it when Prism is **co-located** with a core install; it carries every anchor's
+  public JWKS, so Mantle-signed tokens verify with no Origin round-trip).
+- `AUTHORITY_JWKS_URL` — e.g. `https://origin.<install>/.well-known/jwks.json`
+  (for a **remote** Prism; gives Origin's key).
+
+`EMBEDDINGS_AUDIENCES` (default `prism,agience`) gates the accepted `aud`.
+
+**2. Local HS256 JWT (fallback).** Verified against `PRISM_LOCAL_JWT_SECRET` — the
+standalone/dev path when no authority is reachable.
+
+**3. Static API keys (fallback) — the managed allowlist.** This is how a shared
+Prism serves many callers without handing each the same secret. The allowlist is
+a **directory of key files** on the persistent volume (`EMBEDDINGS_KEYS_DIR`,
+default `/data/keys.d`) — **one file per consumer**, the filename is the label.
+Add or remove a file to grant or revoke a caller **live** (hot-reloaded, no
+redeploy); the dir is on the volume so it survives pod recreations. Each install
+sets its own `EMBEDDINGS_API_KEY` to the raw key.
+
+```bash
+# on Prism's volume — mint and grant a consumer:
+key=$(openssl rand -hex 32)
+printf '%s' "$key" > /data/keys.d/prod.key     # give $key to that Mantle's EMBEDDINGS_API_KEY
+printf '%s' "$(openssl rand -hex 32)" > /data/keys.d/dev.key
+rm /data/keys.d/dev.key                          # revoke (takes effect within seconds)
+```
+
+A file may hold one key per line (`#` comments allowed); dotfiles are ignored;
+keys are matched in constant time. `EMBEDDINGS_SERVER_API_KEY` (comma-separated)
+remains as an optional **inline bootstrap** for a brand-new, still-empty volume.
+Why a dir and not one comma-blob secret: you can see every entry, add/remove one
+without blind-overwriting the rest, and never silently drop a working key.
+
+> **Cross-install note.** A token a *dev* install's Mantle self-signs won't verify
+> against a *prod* Prism (different authority keys) — that's by design. A dev
+> install reaches a shared prod Prism via the API-key (or HS256) fallback, or runs
+> its **own** Prism that reads the dev install's manifest. Same-install pairs
+> (prod↔prod, devbox↔its own Prism) use the JWT primary path.
+
 ## Run locally
 
 ```bash
@@ -73,5 +123,11 @@ python -m agience_prism                 # serves on :8083
 | `EMBEDDINGS_DEVICE` | `cpu` | `cuda` on a GPU host (baked into the GPU image) |
 | `EMBEDDINGS_DIM` | `1024` | asserted against the model at load |
 | `EMBEDDINGS_BATCH_SIZE` | `32` | encode batch size |
-| `EMBEDDINGS_SERVER_API_KEY` | _(unset)_ | shared bearer; unset = open |
+| `EMBEDDINGS_KEYS_DIR` | `/data/keys.d` | directory of key files (one per consumer) — the managed allowlist; add/remove a file to grant/revoke, hot-reloaded |
+| `EMBEDDINGS_SERVER_API_KEY` | _(unset)_ | optional inline bootstrap bearer(s); **comma-separated** for several |
+| `AUTHORITY_MANIFEST` | _(unset)_ | path to the install's `authority.manifest.json` — enables RS256 authority-JWT auth (co-located Prism) |
+| `AUTHORITY_JWKS_URL` | _(unset)_ | JWKS URL (e.g. Origin's `/.well-known/jwks.json`) — enables RS256 authority-JWT auth (remote Prism) |
+| `EMBEDDINGS_AUDIENCES` | `prism,agience` | accepted JWT `aud` values (comma-separated) |
+| `EMBEDDINGS_ALLOWED_ISSUERS` | _(unset)_ | optional `iss` allowlist; unset = trust any key in the authority JWKS |
+| `PRISM_LOCAL_JWT_SECRET` | _(unset)_ | HS256 shared secret — enables the local-JWT fallback |
 | `HF_HOME` | `/data/hf` | model cache (mount a volume) |
