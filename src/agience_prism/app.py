@@ -12,10 +12,17 @@ MANTLE vector arm can treat inner product as cosine.
 from __future__ import annotations
 
 import os
+import threading
 
 from pydantic import BaseModel, Field
 
 from agience_kit import Host
+
+# HF `tokenizers` (Rust) spins up worker threads on first use and can deadlock if
+# the tokenizer is then driven from several threads at once (or across a fork).
+# We serialize inference below and don't need that parallelism, so disable it
+# explicitly — this removes a real hang path and the noisy runtime warning.
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 MODEL_ID = os.getenv("EMBEDDINGS_MODEL", "BAAI/bge-m3")
 DEVICE = os.getenv("EMBEDDINGS_DEVICE", "cpu")
@@ -27,22 +34,29 @@ def _csv(value: str) -> tuple[str, ...]:
     return tuple(p.strip() for p in (value or "").split(",") if p.strip())
 
 _model = None
+# `_model_lock` guards the one-time lazy construction; `_encode_lock` serializes
+# inference so overlapping /embed calls queue instead of hitting the shared model
+# object concurrently (see embed()).
+_model_lock = threading.Lock()
+_encode_lock = threading.Lock()
 
 
 def _load_model():
-    """Lazily construct the model and verify its output dimension."""
+    """Lazily construct the model and verify its output dimension (thread-safe)."""
     global _model
     if _model is None:
-        from sentence_transformers import SentenceTransformer
+        with _model_lock:
+            if _model is None:
+                from sentence_transformers import SentenceTransformer
 
-        m = SentenceTransformer(MODEL_ID, device=DEVICE)
-        dim = m.get_sentence_embedding_dimension()
-        if dim != EXPECTED_DIM:
-            raise RuntimeError(
-                f"{MODEL_ID} emits {dim}-dim vectors but EMBEDDINGS_DIM={EXPECTED_DIM}; "
-                "refusing to start — a dimension mismatch would corrupt the MANTLE index"
-            )
-        _model = m
+                m = SentenceTransformer(MODEL_ID, device=DEVICE)
+                dim = m.get_sentence_embedding_dimension()
+                if dim != EXPECTED_DIM:
+                    raise RuntimeError(
+                        f"{MODEL_ID} emits {dim}-dim vectors but EMBEDDINGS_DIM={EXPECTED_DIM}; "
+                        "refusing to start — a dimension mismatch would corrupt the MANTLE index"
+                    )
+                _model = m
     return _model
 
 
@@ -104,9 +118,19 @@ def embed(req: EmbedRequest) -> EmbedResponse:
     texts = req.input or []
     if not texts:
         return EmbedResponse(vectors=[], model_id=_model_id())
-    vectors = _load_model().encode(
-        texts, batch_size=BATCH_SIZE, normalize_embeddings=True, convert_to_numpy=True
-    )
+    model = _load_model()
+    # FastAPI runs this sync handler in its threadpool, so two overlapping /embed
+    # calls would otherwise invoke .encode() on the SAME model object at once.
+    # SentenceTransformer/PyTorch inference isn't concurrency-safe: on CPU it
+    # oversubscribes torch's worker threads and the HF tokenizer can deadlock,
+    # surfacing as the occasional full hang (made more likely by the constant
+    # internet scan traffic that reaches the public proxy URL). Serialize encode
+    # so calls queue instead of colliding — the event loop stays free to answer
+    # /health and unmatched (404) probes.
+    with _encode_lock:
+        vectors = model.encode(
+            texts, batch_size=BATCH_SIZE, normalize_embeddings=True, convert_to_numpy=True
+        )
     return EmbedResponse(vectors=[row.tolist() for row in vectors], model_id=_model_id())
 
 
