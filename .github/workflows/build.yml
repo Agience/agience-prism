@@ -5,9 +5,9 @@ name: Build & push Prism (GPU)
 # Mantle's EMBEDDINGS_URI at the pod. Mirrors the core suite's build pattern
 # (DOCKERHUB_NAMESPACE / DOCKERHUB_TOKEN secrets).
 #
-# The image needs the agience-host SDK as a build context until it's on PyPI,
-# so this checks out agience-host too (repo/ref overridable via repo Variables
-# HOST_REPO / HOST_REF).
+# The image needs the agience-kit SDK as a build context until it's on PyPI,
+# so this checks out agience-kit too (repo/ref overridable via repo Variables
+# KIT_REPO / KIT_REF).
 
 on:
   workflow_dispatch:
@@ -29,12 +29,12 @@ jobs:
         with:
           path: agience-prism
 
-      - name: Checkout host (build context)
+      - name: Checkout kit (build context)
         uses: actions/checkout@v4
         with:
-          repository: ${{ vars.HOST_REPO || 'Agience/agience-host' }}
-          ref: ${{ vars.HOST_REF || 'main' }}
-          path: agience-host
+          repository: ${{ vars.KIT_REPO || 'Agience/agience-kit' }}
+          ref: ${{ vars.KIT_REF || 'main' }}
+          path: agience-kit
 
       - name: Free disk space (CUDA base is large)
         run: |
@@ -68,6 +68,6 @@ jobs:
           context: agience-prism
           file: agience-prism/Dockerfile.gpu
           build-contexts: |
-            host=agience-host
+            kit=agience-kit
           push: true
           tags: ${{ steps.tags.outputs.tags }}

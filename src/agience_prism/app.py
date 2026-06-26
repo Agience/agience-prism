@@ -1,6 +1,6 @@
 """Agience Prism — bge-m3 served as the ``embeddings.embed`` capability.
 
-Built on agience-host. Speaks the contract the platform's ``kernel/embeddings.py``
+Built on agience-kit. Speaks the contract the platform's ``kernel/embeddings.py``
 (AgienceHTTPEmbeddings) expects::
 
     POST /embed  {"input": ["text", ...]}  ->  {"vectors": [[float, ...]], "model_id": "..."}

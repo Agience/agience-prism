@@ -7,7 +7,7 @@ name = "agience-prism"
 version = "0.1.0"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
-description = "Agience Prism — the embeddings capability host (bge-m3), built on agience-host."
+description = "Agience Prism — the embeddings capability host (bge-m3), built on agience-kit."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

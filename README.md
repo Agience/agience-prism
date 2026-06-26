@@ -1,7 +1,7 @@
 # Agience Prism
 
 The **embeddings** capability host for Agience — `bge-m3` served as `embeddings.embed`
-over `POST /embed`, built on **agience-host**. AGPL-3.0.
+over `POST /embed`, built on **agience-kit**. AGPL-3.0.
 
     POST /embed  {"input": ["text", ...]}  ->  {"vectors": [[float, ...]], "model_id": "..."}
 
@@ -11,20 +11,27 @@ platform only over the wire (Mantle calls `/embed`); it never imports core.
 
 ## Build & publish (public image — no pull token)
 
-Prism depends on the `agience-host` SDK. Until the host is on PyPI, the build pulls
+Prism depends on the `agience-kit` SDK. Until the kit is on PyPI, the build pulls
 it from a sibling checkout via a BuildKit **named context** — no PyPI, no giant build
 context:
 
 ```bash
-# GPU image (RunPod). Run from the agience-prism repo root, with agience-host as a sibling dir:
-docker build --build-context host=../agience-host \
+# GPU image (RunPod). Run from the agience-prism repo root, with agience-kit as a sibling dir:
+docker build --build-context kit=../agience-kit \
   -f Dockerfile.gpu -t <your-namespace>/agience-prism:gpu .
 docker push <your-namespace>/agience-prism:gpu        # push to a PUBLIC repo
 ```
 
-`Dockerfile` is the CPU variant (same `--build-context`). **Once `agience-host` is
-published to PyPI,** drop `--build-context` and the two `host` lines in the Dockerfile
-— `pip install .` then resolves `agience-host` directly.
+Or in **one shot** — build + push + roll the RunPod pod in place — with
+`prism-agience-ai` as a sibling and `$env:RUNPOD_API_KEY` set:
+
+```powershell
+.scripts/build.ps1 -Tag gpu-2026-06-25 -Deploy   # immutable tag => guaranteed re-pull
+```
+
+`Dockerfile` is the CPU variant (same `--build-context`). **Once `agience-kit` is
+published to PyPI,** drop `--build-context` and the two `kit` lines in the Dockerfile
+— `pip install .` then resolves `agience-kit` directly.
 
 ## Deploy on RunPod
 
@@ -110,7 +117,7 @@ without blind-overwriting the rest, and never silently drop a working key.
 ## Run locally
 
 ```bash
-pip install -e ../agience-host        # the SDK (until it's on PyPI)
+pip install -e ../agience-kit         # the SDK (until it's on PyPI)
 pip install -e .                        # prism + model deps (pulls torch CPU)
 python -m agience_prism                 # serves on :8083
 ```
